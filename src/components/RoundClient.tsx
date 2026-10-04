@@ -12,17 +12,18 @@ import { submitTree } from "@/actions/submissions";
 export function RoundClient({ round }: { round: RoundWithPool }) {
   const [participant, setParticipant] = useState<ParticipantInput | null>(null);
   const [initialItems, setInitialItems] = useState<RatedItemInput[] | undefined>(undefined);
+  const [previousRatings, setPreviousRatings] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
 
   async function handleIdentify(data: ParticipantInput) {
     setLoading(true);
     try {
-      const existing = await lookupExistingSubmission(round.inviteToken, data.email);
-      if (existing) {
-        setInitialItems(renderedToInput(existing.items));
-      } else {
-        setInitialItems([]);
-      }
+      const { submission, previousRatings } = await lookupExistingSubmission(round.inviteToken, data.email);
+      // Ohne gespeicherte Einreichung bleibt initialItems leer: der Editor startet dann mit der
+      // Vorauswahl aus der Vorrunde. Eine gespeicherte Einreichung wird unverändert geladen, damit
+      // bewusst abgewählte Kategorien abgewählt bleiben.
+      setInitialItems(submission ? renderedToInput(submission.items) : undefined);
+      setPreviousRatings(previousRatings);
       setParticipant(data);
     } finally {
       setLoading(false);
@@ -55,6 +56,7 @@ export function RoundClient({ round }: { round: RoundWithPool }) {
         feedback={round.feedbackSummary}
         roundNumber={round.roundNumber}
         initialItems={initialItems}
+        previousRatings={previousRatings}
         disabled={round.status !== "open"}
         onSubmit={(items) => submitTree({ token: round.inviteToken, participant, items })}
       />

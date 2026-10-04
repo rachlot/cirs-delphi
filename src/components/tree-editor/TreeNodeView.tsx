@@ -11,8 +11,8 @@ export interface PoolLookupEntry {
 interface Props {
   item: RatedItemInput;
   poolMap: Map<string, PoolLookupEntry>;
-  // Gesetzt bei Kategorien aus der Vorrunde: fest in der Liste, Gruppen-Median wird markiert.
-  previous?: { roundNumber: number; median: number | null };
+  // Gesetzt bei Kategorien aus der Vorrunde: Gruppen-Median und eigene Bewertung werden markiert.
+  previous?: { roundNumber: number; median: number | null; ownRating: number | null };
   onRate: (clientId: string, rating: number) => void;
   onCommentChange: (clientId: string, comment: string) => void;
   onRemove: (clientId: string) => void;
@@ -71,16 +71,14 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
           >
             💬
           </button>
-          {!previous && (
-            <button
-              type="button"
-              title="Entfernen"
-              onClick={() => onRemove(item.clientId)}
-              className="rounded px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-50"
-            >
-              ✕
-            </button>
-          )}
+          <button
+            type="button"
+            title="Entfernen"
+            onClick={() => onRemove(item.clientId)}
+            className="rounded px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-50"
+          >
+            ✕
+          </button>
         </div>
       </div>
 
@@ -89,23 +87,40 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
           <span>1 · niedrige Wichtigkeit / Sicherheitsrelevanz</span>
           <span>9 · sehr hohe Wichtigkeit / Sicherheitsrelevanz</span>
         </div>
-        {previous?.median != null && (
-          <p className="mb-1 text-[11px] text-amber-700">
-            Median Runde {previous.roundNumber}: {formatMedian(previous.median)}
+        {previous && (previous.median !== null || previous.ownRating !== null) && (
+          <p className="mb-1 flex flex-wrap gap-x-3 text-[11px]">
+            {previous.median !== null && (
+              <span className="text-amber-700">
+                Median Runde {previous.roundNumber}: {formatMedian(previous.median)}
+              </span>
+            )}
+            {previous.ownRating !== null && (
+              <span className="text-sky-700">
+                <span className="text-sky-600">●</span> Deine Bewertung Runde {previous.roundNumber}:{" "}
+                {previous.ownRating}
+              </span>
+            )}
           </p>
         )}
         <div className="grid grid-cols-9 gap-1">
           {SCALE.map((value) => {
             const selected = item.rating === value;
             const isMedian = medianMarks.includes(value);
+            const isOwnPrevious = previous?.ownRating === value;
             return (
               <button
                 key={value}
                 type="button"
                 onClick={() => onRate(item.clientId, value)}
                 aria-pressed={selected}
-                title={isMedian && previous ? `Median Runde ${previous.roundNumber}` : undefined}
-                className={`rounded-md border py-1.5 text-sm font-medium transition-colors ${
+                title={
+                  previous && (isMedian || isOwnPrevious)
+                    ? [isMedian && "Median", isOwnPrevious && "deine Bewertung"]
+                        .filter(Boolean)
+                        .join(" · ") + ` Runde ${previous.roundNumber}`
+                    : undefined
+                }
+                className={`relative rounded-md border py-1.5 text-sm font-medium transition-colors ${
                   selected
                     ? `border-teal-600 bg-teal-600 text-white${isMedian ? " ring-2 ring-amber-400 ring-offset-1" : ""}`
                     : isMedian
@@ -114,6 +129,14 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
                 }`}
               >
                 {value}
+                {isOwnPrevious && (
+                  <span
+                    aria-hidden
+                    className={`absolute right-1 top-0.5 text-[8px] leading-none ${selected ? "text-white" : "text-sky-600"}`}
+                  >
+                    ●
+                  </span>
+                )}
               </button>
             );
           })}

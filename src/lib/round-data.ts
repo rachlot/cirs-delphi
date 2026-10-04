@@ -138,3 +138,32 @@ export async function getExistingSubmission(
     items,
   };
 }
+
+/**
+ * Eigene Bewertungen aus der Vorrunde (categoryId -> 1-9). Eigene Freitext-Kategorien
+ * werden über den Namen der in den Pool übernommenen Kategorie zugeordnet.
+ */
+export async function getPreviousOwnRatings(round: RoundWithPool, email: string): Promise<Record<string, number>> {
+  if (round.roundNumber <= 1) return {};
+  const rows = await db
+    .select({ categoryId: ratings.categoryId, customLabel: ratings.customLabel, rating: ratings.rating })
+    .from(ratings)
+    .innerJoin(submissions, eq(submissions.id, ratings.submissionId))
+    .innerJoin(participants, eq(participants.id, submissions.participantId))
+    .innerJoin(rounds, eq(rounds.id, submissions.roundId))
+    .where(
+      and(
+        eq(rounds.roundNumber, round.roundNumber - 1),
+        eq(participants.email, email.trim().toLowerCase()),
+        eq(submissions.status, "submitted")
+      )
+    );
+
+  const poolIdByName = new Map(round.pool.map((c) => [c.name.trim().toLowerCase(), c.id]));
+  const result: Record<string, number> = {};
+  for (const row of rows) {
+    const categoryId = row.categoryId ?? poolIdByName.get(row.customLabel?.trim().toLowerCase() ?? "");
+    if (categoryId) result[categoryId] = row.rating;
+  }
+  return result;
+}
