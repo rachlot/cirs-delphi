@@ -12,7 +12,7 @@ interface Props {
   item: RatedItemInput;
   poolMap: Map<string, PoolLookupEntry>;
   // Gesetzt bei Kategorien aus der Vorrunde: Gruppen-Median und eigene Bewertung werden markiert.
-  previous?: { roundNumber: number; median: number | null; ownRating: number | null };
+  previous?: { roundNumber: number; median: number | null; consensus: boolean; ownRating: number | null };
   onRate: (clientId: string, rating: number) => void;
   onCommentChange: (clientId: string, comment: string) => void;
   onRemove: (clientId: string) => void;
@@ -26,18 +26,13 @@ const SCALE = [1, 2, 3, 4, 5, 6, 7, 8, 9];
  * + optionaler Kommentar + Entfernen. Ersetzt die frühere Baum-Knoten-Ansicht
  * (kein Drag & Drop, keine Eltern-Kind-Beziehung mehr).
  */
-/** Skalenwerte, die den Median markieren: bei x,5 beide Nachbarn. */
-function medianValues(median: number | null): number[] {
-  if (median === null) return [];
-  return Number.isInteger(median) ? [median] : [Math.floor(median), Math.ceil(median)];
-}
-
-function formatMedian(median: number): string {
-  return median.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+/** Median auf die Skala gerundet, x,5 wird aufgerundet. */
+function roundMedian(median: number | null): number | null {
+  return median === null ? null : Math.floor(median + 0.5);
 }
 
 export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, onRemove }: Props) {
-  const medianMarks = medianValues(previous?.median ?? null);
+  const roundedMedian = roundMedian(previous?.median ?? null);
   const category = item.categoryId ? poolMap.get(item.categoryId) : undefined;
   const isWhoIcps = !!category?.isWhoIcps;
   const label = item.categoryId ? category?.name ?? "(unbekannte Kategorie)" : item.customLabel ?? "";
@@ -50,6 +45,11 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
         {isWhoIcps && (
           <span className="rounded bg-teal-50 px-1 py-0.5 text-[10px] font-medium leading-none text-teal-700">
             WHO ICPS
+          </span>
+        )}
+        {previous?.consensus && (
+          <span className="rounded bg-green-100 px-1 py-0.5 text-[10px] font-medium leading-none text-green-800">
+            Konsens erreicht
           </span>
         )}
         {previous && (
@@ -87,11 +87,11 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
           <span>1 · niedrige Wichtigkeit / Sicherheitsrelevanz</span>
           <span>9 · sehr hohe Wichtigkeit / Sicherheitsrelevanz</span>
         </div>
-        {previous && (previous.median !== null || previous.ownRating !== null) && (
+        {previous && (roundedMedian !== null || previous.ownRating !== null) && (
           <p className="mb-1 flex flex-wrap gap-x-3 text-[11px]">
-            {previous.median !== null && (
+            {roundedMedian !== null && (
               <span className="text-amber-700">
-                Median Runde {previous.roundNumber}: {formatMedian(previous.median)}
+                <span className="text-amber-500">●</span> Median Runde {previous.roundNumber}: {roundedMedian}
               </span>
             )}
             {previous.ownRating !== null && (
@@ -105,7 +105,7 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
         <div className="grid grid-cols-9 gap-1">
           {SCALE.map((value) => {
             const selected = item.rating === value;
-            const isMedian = medianMarks.includes(value);
+            const isMedian = roundedMedian === value;
             const isOwnPrevious = previous?.ownRating === value;
             return (
               <button
@@ -122,13 +122,16 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
                 }
                 className={`relative rounded-md border py-1.5 text-sm font-medium transition-colors ${
                   selected
-                    ? `border-teal-600 bg-teal-600 text-white${isMedian ? " ring-2 ring-amber-400 ring-offset-1" : ""}`
-                    : isMedian
-                      ? "border-amber-400 bg-amber-50 text-amber-800 hover:border-teal-400 hover:bg-teal-50"
-                      : "border-slate-300 bg-white text-slate-600 hover:border-teal-400 hover:bg-teal-50"
+                    ? "border-teal-600 bg-teal-600 text-white"
+                    : "border-slate-300 bg-white text-slate-600 hover:border-teal-400 hover:bg-teal-50"
                 }`}
               >
                 {value}
+                {isMedian && (
+                  <span aria-hidden className="absolute left-1 top-0.5 text-[8px] leading-none text-amber-500">
+                    ●
+                  </span>
+                )}
                 {isOwnPrevious && (
                   <span
                     aria-hidden

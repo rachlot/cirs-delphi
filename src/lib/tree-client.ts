@@ -71,25 +71,35 @@ export function collectPlacedCategoryIds(items: RatedItemInput[]): Set<string> {
   return set;
 }
 
+export interface PreviousRoundInfo {
+  median: number | null;
+  consensus: boolean;
+}
+
 /**
- * Vorausgewählte Kategorien der Runde (categoryId -> Gruppen-Median der Vorrunde), in
+ * Vorausgewählte Kategorien der Runde (categoryId -> Median und Konsens der Vorrunde), in
  * Pool-Reihenfolge. Runden, die vor Einführung von `preselected` angelegt wurden, werden
  * über den Kategorienamen und den Median im Rückmeldetext zugeordnet.
  */
-export function getPreselected(feedback: FeedbackSummary | null, pool: PoolCategory[]): Map<string, number | null> {
-  const medians = new Map<string, number | null>();
+export function getPreselected(feedback: FeedbackSummary | null, pool: PoolCategory[]): Map<string, PreviousRoundInfo> {
+  const info = new Map<string, PreviousRoundInfo>();
   if (feedback?.preselected) {
-    for (const p of feedback.preselected) medians.set(p.categoryId, p.median);
+    for (const p of feedback.preselected) {
+      info.set(p.categoryId, { median: p.median, consensus: p.consensus ?? false });
+    }
   } else if (feedback) {
     const idByName = new Map(pool.map((c) => [c.name, c.id]));
     for (const item of feedback.items) {
       const id = idByName.get(item.categoryName);
       const match = /Median-Bewertung: ([\d.]+)/.exec(item.statText);
-      if (id) medians.set(id, match ? Number(match[1]) : null);
+      if (id) info.set(id, { median: match ? Number(match[1]) : null, consensus: !item.isControversial });
     }
   }
-  const ordered = new Map<string, number | null>();
-  for (const c of pool) if (medians.has(c.id)) ordered.set(c.id, medians.get(c.id)!);
+  const ordered = new Map<string, PreviousRoundInfo>();
+  for (const c of pool) {
+    const entry = info.get(c.id);
+    if (entry) ordered.set(c.id, entry);
+  }
   return ordered;
 }
 

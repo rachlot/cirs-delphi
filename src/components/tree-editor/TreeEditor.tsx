@@ -158,9 +158,8 @@ export function RatingEditor({
           {preselected.size > 0 && (
             <p className="mb-2 text-xs text-slate-500">
               Die Kategorien aus Runde {roundNumber - 1} sind vorausgewählt und können abgewählt werden.{" "}
-              <span className="rounded border border-amber-400 bg-amber-50 px-1 text-amber-800">Orange</span>{" "}
-              = Median der Gruppe, <span className="text-sky-600">●</span> = deine Bewertung in Runde{" "}
-              {roundNumber - 1}.
+              <span className="text-amber-500">●</span> Median der Gruppe,{" "}
+              <span className="text-sky-600">●</span> deine Bewertung in Runde {roundNumber - 1}.
             </p>
           )}
 
@@ -179,7 +178,8 @@ export function RatingEditor({
                     item.categoryId && (preselected.has(item.categoryId) || item.categoryId in previousRatings)
                       ? {
                           roundNumber: roundNumber - 1,
-                          median: preselected.get(item.categoryId) ?? null,
+                          median: preselected.get(item.categoryId)?.median ?? null,
+                          consensus: preselected.get(item.categoryId)?.consensus ?? false,
                           ownRating: previousRatings[item.categoryId] ?? null,
                         }
                       : undefined

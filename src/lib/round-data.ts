@@ -20,6 +20,7 @@ export interface FeedbackSummaryItem {
 export interface PreselectedCategory {
   categoryId: string;
   median: number | null; // Gruppen-Median der Vorrunde (1-9), null bei neu aufgenommenen Vorschlägen ohne Pool-Bewertung
+  consensus?: boolean; // Konsens nach dem Kriterium der Vorrunde (IQR <= Schwellenwert); fehlt bei älteren Runden
 }
 
 export interface FeedbackSummary {

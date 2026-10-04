@@ -238,7 +238,9 @@ getroffene Annahmen sind leicht anpassbar:
   offiziellen Klassifikation (siehe Kommentare in `taxonomy-seed-data.ts`) – bitte prüfen
   und bei Bedarf anpassen, falls eine andere WHO-ICPS-Fassung zugrunde gelegt werden soll.
 - **Rückmeldung an Teilnehmende**: Ab Runde 2 direkt an jeder Kategorie: Gruppen-Median
-  der Vorrunde (orange auf der Skala) und die eigene Vorrunden-Bewertung (blauer Punkt).
+  der Vorrunde (oranger Punkt auf der Skala, x,5 aufgerundet), die eigene
+  Vorrunden-Bewertung (blauer Punkt) und „Konsens erreicht“, wenn der IQR in der Vorrunde
+  das Konsenskriterium erfüllt hat.
   Die in der Vorrunde bewerteten Kategorien sind vorausgewählt und abwählbar. Der
   optionale Hinweistext der Organisation erscheint als Textzeile über der Auswahl.
 - **Admin-Zugriff**: Ein gemeinsames Passwort statt individueller Konten (siehe oben).

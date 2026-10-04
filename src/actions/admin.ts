@@ -181,7 +181,11 @@ export async function createNextRound(input: CreateRoundInput): Promise<{ ok: bo
       sortOrder: newRoundCategoryRows.length,
     });
     promotedDisplayLabels.push(stat.displayLabel);
-    promotedPreselected.push({ categoryId: newCategoryId, median: stat.median });
+    promotedPreselected.push({
+      categoryId: newCategoryId,
+      median: stat.median,
+      consensus: stat.consensusReached ?? false,
+    });
   }
 
   // Kompakte Rückmeldung (Zahlen + Text) aus der Vorrunde zusammenstellen.
@@ -207,7 +211,7 @@ export async function createNextRound(input: CreateRoundInput): Promise<{ ok: bo
     preselected: [
       ...aggregation.categoryStats
         .filter((c) => c.n > 0)
-        .map((c) => ({ categoryId: c.categoryId, median: c.median })),
+        .map((c) => ({ categoryId: c.categoryId, median: c.median, consensus: c.consensusReached ?? false })),
       ...promotedPreselected,
     ],
   };
