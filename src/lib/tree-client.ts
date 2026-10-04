@@ -1,5 +1,6 @@
 import type { RatedItemInput } from "./validation";
 import type { RenderedRatingItem } from "./tree";
+import type { FeedbackSummary, PoolCategory } from "./round-data";
 
 // Hinweis: Dateiname "tree-client.ts" aus der ursprünglichen Baum-Version
 // beibehalten (keine Importe im Projekt anfassen), Inhalt ist jetzt eine
@@ -68,4 +69,37 @@ export function collectPlacedCategoryIds(items: RatedItemInput[]): Set<string> {
     if (n.categoryId) set.add(n.categoryId);
   }
   return set;
+}
+
+/**
+ * Vorausgewählte Kategorien der Runde (categoryId -> Gruppen-Median der Vorrunde), in
+ * Pool-Reihenfolge. Runden, die vor Einführung von `preselected` angelegt wurden, werden
+ * über den Kategorienamen und den Median im Rückmeldetext zugeordnet.
+ */
+export function getPreselected(feedback: FeedbackSummary | null, pool: PoolCategory[]): Map<string, number | null> {
+  const medians = new Map<string, number | null>();
+  if (feedback?.preselected) {
+    for (const p of feedback.preselected) medians.set(p.categoryId, p.median);
+  } else if (feedback) {
+    const idByName = new Map(pool.map((c) => [c.name, c.id]));
+    for (const item of feedback.items) {
+      const id = idByName.get(item.categoryName);
+      const match = /Median-Bewertung: ([\d.]+)/.exec(item.statText);
+      if (id) medians.set(id, match ? Number(match[1]) : null);
+    }
+  }
+  const ordered = new Map<string, number | null>();
+  for (const c of pool) if (medians.has(c.id)) ordered.set(c.id, medians.get(c.id)!);
+  return ordered;
+}
+
+/** Ergänzt fehlende vorausgewählte Kategorien (unbewertet) vor den übrigen Einträgen. */
+export function withPreselected(items: RatedItemInput[], preselectedIds: Iterable<string>): RatedItemInput[] {
+  const present = collectPlacedCategoryIds(items);
+  const missing: RatedItemInput[] = [];
+  for (const categoryId of preselectedIds) {
+    if (present.has(categoryId)) continue;
+    missing.push({ clientId: newClientId(), categoryId, customLabel: null, rating: null, comment: null });
+  }
+  return [...missing, ...items];
 }

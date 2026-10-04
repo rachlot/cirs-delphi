@@ -8,6 +8,7 @@ import { rounds, categories, roundCategories, settings, participants, submission
 import { checkAdminPassword, createAdminSession, destroyAdminSession, isAdminAuthenticated } from "@/lib/auth";
 import { getRoundAggregation } from "@/lib/aggregation";
 import { newId } from "@/lib/ids";
+import type { PreselectedCategory } from "@/lib/round-data";
 
 async function requireAdmin() {
   if (!(await isAdminAuthenticated())) {
@@ -160,6 +161,7 @@ export async function createNextRound(input: CreateRoundInput): Promise<{ ok: bo
 
   // Ausgewählte Freitext-Vorschläge in den gemeinsamen Pool übernehmen
   const promotedDisplayLabels: string[] = [];
+  const promotedPreselected: PreselectedCategory[] = [];
   for (const normalizedLabel of input.promotedCustomLabels) {
     const stat = aggregation.customCategories.find((c) => c.normalizedLabel === normalizedLabel);
     if (!stat) continue;
@@ -179,6 +181,7 @@ export async function createNextRound(input: CreateRoundInput): Promise<{ ok: bo
       sortOrder: newRoundCategoryRows.length,
     });
     promotedDisplayLabels.push(stat.displayLabel);
+    promotedPreselected.push({ categoryId: newCategoryId, median: stat.median });
   }
 
   // Kompakte Rückmeldung (Zahlen + Text) aus der Vorrunde zusammenstellen.
@@ -199,6 +202,14 @@ export async function createNextRound(input: CreateRoundInput): Promise<{ ok: bo
     items,
     newSuggestions: promotedDisplayLabels,
     note: input.note?.trim() || undefined,
+    // Delphi: alle in der Vorrunde bewerteten Kategorien werden erneut bewertet, mit dem
+    // Gruppen-Median als Orientierung.
+    preselected: [
+      ...aggregation.categoryStats
+        .filter((c) => c.n > 0)
+        .map((c) => ({ categoryId: c.categoryId, median: c.median })),
+      ...promotedPreselected,
+    ],
   };
 
   await db.insert(rounds).values({

@@ -7,8 +7,10 @@ import {
   addCategoryItem,
   addCustomItem,
   collectPlacedCategoryIds,
+  getPreselected,
   removeItem,
   updateItem,
+  withPreselected,
 } from "@/lib/tree-client";
 import { CategoryPool } from "./CategoryPool";
 import { RatingRow } from "./TreeNodeView";
@@ -30,7 +32,10 @@ export interface RatingEditorProps {
  * früheren Drag-&-Drop-Baum-Editor (bewusst vereinfacht, keine Hierarchie mehr).
  */
 export function RatingEditor({ pool, feedback, roundNumber, initialItems, disabled, onSubmit }: RatingEditorProps) {
-  const [items, setItems] = useState<RatedItemInput[]>(initialItems ?? []);
+  const preselected = useMemo(() => getPreselected(feedback, pool), [feedback, pool]);
+  const [items, setItems] = useState<RatedItemInput[]>(() =>
+    withPreselected(initialItems ?? [], preselected.keys())
+  );
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ ok: boolean; error?: string } | null>(null);
   const [customLabel, setCustomLabel] = useState("");
@@ -56,7 +61,11 @@ export function RatingEditor({ pool, feedback, roundNumber, initialItems, disabl
   }
 
   function handleRemove(clientId: string) {
-    setItems((prev) => removeItem(prev, clientId));
+    // Kategorien aus der Vorrunde bewerten alle erneut, sie lassen sich nicht entfernen.
+    setItems((prev) => {
+      const item = prev.find((i) => i.clientId === clientId);
+      return item?.categoryId && preselected.has(item.categoryId) ? prev : removeItem(prev, clientId);
+    });
   }
 
   function handleRate(clientId: string, rating: number) {
@@ -142,6 +151,14 @@ export function RatingEditor({ pool, feedback, roundNumber, initialItems, disabl
             </span>
           </div>
 
+          {preselected.size > 0 && (
+            <p className="mb-2 text-xs text-slate-500">
+              Die Kategorien aus Runde {roundNumber - 1} sind vorausgewählt. Bitte erneut bewerten.{" "}
+              <span className="rounded border border-amber-400 bg-amber-50 px-1 text-amber-800">Orange</span>{" "}
+              = Median der Gruppe in Runde {roundNumber - 1}.
+            </p>
+          )}
+
           {items.length === 0 ? (
             <p className="rounded-lg border-2 border-dashed border-slate-200 p-4 text-center text-sm text-slate-400">
               Kategorien links anklicken, um sie hier zu bewerten.
@@ -153,6 +170,11 @@ export function RatingEditor({ pool, feedback, roundNumber, initialItems, disabl
                   key={item.clientId}
                   item={item}
                   poolMap={poolMap}
+                  previous={
+                    item.categoryId && preselected.has(item.categoryId)
+                      ? { roundNumber: roundNumber - 1, median: preselected.get(item.categoryId) ?? null }
+                      : undefined
+                  }
                   onRate={handleRate}
                   onCommentChange={handleCommentChange}
                   onRemove={handleRemove}

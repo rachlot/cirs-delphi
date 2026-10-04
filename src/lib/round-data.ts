@@ -16,11 +16,19 @@ export interface FeedbackSummaryItem {
   isControversial: boolean;
 }
 
+/** Kategorie aus der Vorrunde, die in dieser Runde bei allen vorausgewählt ist. */
+export interface PreselectedCategory {
+  categoryId: string;
+  median: number | null; // Gruppen-Median der Vorrunde (1-9), null bei neu aufgenommenen Vorschlägen ohne Pool-Bewertung
+}
+
 export interface FeedbackSummary {
   generatedAt: string;
   items: FeedbackSummaryItem[];
   newSuggestions: string[];
   note?: string;
+  // Fehlt bei Runden, die vor Einführung der Vorauswahl angelegt wurden.
+  preselected?: PreselectedCategory[];
 }
 
 export interface RoundWithPool {

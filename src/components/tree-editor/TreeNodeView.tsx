@@ -11,6 +11,8 @@ export interface PoolLookupEntry {
 interface Props {
   item: RatedItemInput;
   poolMap: Map<string, PoolLookupEntry>;
+  // Gesetzt bei Kategorien aus der Vorrunde: fest in der Liste, Gruppen-Median wird markiert.
+  previous?: { roundNumber: number; median: number | null };
   onRate: (clientId: string, rating: number) => void;
   onCommentChange: (clientId: string, comment: string) => void;
   onRemove: (clientId: string) => void;
@@ -24,7 +26,18 @@ const SCALE = [1, 2, 3, 4, 5, 6, 7, 8, 9];
  * + optionaler Kommentar + Entfernen. Ersetzt die frühere Baum-Knoten-Ansicht
  * (kein Drag & Drop, keine Eltern-Kind-Beziehung mehr).
  */
-export function RatingRow({ item, poolMap, onRate, onCommentChange, onRemove }: Props) {
+/** Skalenwerte, die den Median markieren: bei x,5 beide Nachbarn. */
+function medianValues(median: number | null): number[] {
+  if (median === null) return [];
+  return Number.isInteger(median) ? [median] : [Math.floor(median), Math.ceil(median)];
+}
+
+function formatMedian(median: number): string {
+  return median.toLocaleString("de-DE", { maximumFractionDigits: 2 });
+}
+
+export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, onRemove }: Props) {
+  const medianMarks = medianValues(previous?.median ?? null);
   const category = item.categoryId ? poolMap.get(item.categoryId) : undefined;
   const isWhoIcps = !!category?.isWhoIcps;
   const label = item.categoryId ? category?.name ?? "(unbekannte Kategorie)" : item.customLabel ?? "";
@@ -37,6 +50,11 @@ export function RatingRow({ item, poolMap, onRate, onCommentChange, onRemove }: 
         {isWhoIcps && (
           <span className="rounded bg-teal-50 px-1 py-0.5 text-[10px] font-medium leading-none text-teal-700">
             WHO ICPS
+          </span>
+        )}
+        {previous && (
+          <span className="rounded bg-slate-100 px-1 py-0.5 text-[10px] font-medium leading-none text-slate-600">
+            aus Runde {previous.roundNumber}
           </span>
         )}
         {!item.categoryId && (
@@ -53,14 +71,16 @@ export function RatingRow({ item, poolMap, onRate, onCommentChange, onRemove }: 
           >
             💬
           </button>
-          <button
-            type="button"
-            title="Entfernen"
-            onClick={() => onRemove(item.clientId)}
-            className="rounded px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-50"
-          >
-            ✕
-          </button>
+          {!previous && (
+            <button
+              type="button"
+              title="Entfernen"
+              onClick={() => onRemove(item.clientId)}
+              className="rounded px-1.5 py-0.5 text-xs text-red-500 hover:bg-red-50"
+            >
+              ✕
+            </button>
+          )}
         </div>
       </div>
 
@@ -69,19 +89,28 @@ export function RatingRow({ item, poolMap, onRate, onCommentChange, onRemove }: 
           <span>1 · niedrige Wichtigkeit / Sicherheitsrelevanz</span>
           <span>9 · sehr hohe Wichtigkeit / Sicherheitsrelevanz</span>
         </div>
+        {previous?.median != null && (
+          <p className="mb-1 text-[11px] text-amber-700">
+            Median Runde {previous.roundNumber}: {formatMedian(previous.median)}
+          </p>
+        )}
         <div className="grid grid-cols-9 gap-1">
           {SCALE.map((value) => {
             const selected = item.rating === value;
+            const isMedian = medianMarks.includes(value);
             return (
               <button
                 key={value}
                 type="button"
                 onClick={() => onRate(item.clientId, value)}
                 aria-pressed={selected}
+                title={isMedian && previous ? `Median Runde ${previous.roundNumber}` : undefined}
                 className={`rounded-md border py-1.5 text-sm font-medium transition-colors ${
                   selected
-                    ? "border-teal-600 bg-teal-600 text-white"
-                    : "border-slate-300 bg-white text-slate-600 hover:border-teal-400 hover:bg-teal-50"
+                    ? `border-teal-600 bg-teal-600 text-white${isMedian ? " ring-2 ring-amber-400 ring-offset-1" : ""}`
+                    : isMedian
+                      ? "border-amber-400 bg-amber-50 text-amber-800 hover:border-teal-400 hover:bg-teal-50"
+                      : "border-slate-300 bg-white text-slate-600 hover:border-teal-400 hover:bg-teal-50"
                 }`}
               >
                 {value}
