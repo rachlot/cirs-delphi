@@ -237,9 +237,10 @@ getroffene Annahmen sind leicht anpassbar:
   offiziellen WHO-Klassifikation, war im Lastenheft aber markiert. Die App folgt jetzt der
   offiziellen Klassifikation (siehe Kommentare in `taxonomy-seed-data.ts`) – bitte prüfen
   und bei Bedarf anpassen, falls eine andere WHO-ICPS-Fassung zugrunde gelegt werden soll.
-- **Rückmeldung an Teilnehmende**: Als „Zahlen + Kurztext" umgesetzt (gemäß
-  Rückfrage-Klärung), nicht als Diagramm. Eine grafische Darstellung ließe sich später
-  ergänzen (z.B. in `FeedbackPanel.tsx`).
+- **Rückmeldung an Teilnehmende**: Ab Runde 2 direkt an jeder Kategorie: Gruppen-Median
+  der Vorrunde (orange auf der Skala) und die eigene Vorrunden-Bewertung (blauer Punkt).
+  Die in der Vorrunde bewerteten Kategorien sind vorausgewählt und abwählbar. Der
+  optionale Hinweistext der Organisation erscheint als Textzeile über der Auswahl.
 - **Admin-Zugriff**: Ein gemeinsames Passwort statt individueller Konten (siehe oben).
 - **Konsenskriterium nach RAND/UCLA**: Konsens gilt je Kategorie als erreicht, wenn der
   Interquartilsabstand (IQR) der 1–9-Bewertungen kleiner oder gleich dem in den
