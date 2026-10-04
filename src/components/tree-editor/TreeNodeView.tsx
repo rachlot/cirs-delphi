@@ -39,7 +39,11 @@ export function RatingRow({ item, poolMap, previous, onRate, onCommentChange, on
   const [commentOpen, setCommentOpen] = useState(!!item.comment);
 
   return (
-    <li className="rounded-lg border border-slate-200 bg-white p-3">
+    <li
+      className={`rounded-lg border p-3 ${
+        previous?.consensus ? "border-green-300 bg-green-50" : "border-slate-200 bg-white"
+      }`}
+    >
       <div className="flex flex-wrap items-center gap-1.5">
         <span className="text-sm font-medium text-slate-800">{label}</span>
         {isWhoIcps && (
