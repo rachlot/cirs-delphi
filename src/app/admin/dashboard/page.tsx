@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdminPage } from "@/lib/auth";
 import { db } from "@/db";
 import { rounds, submissions, settings } from "@/db/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { AdminNav } from "@/components/AdminNav";
 import { seedIfEmpty } from "@/db/seed-data";
 
@@ -14,19 +14,34 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default async function AdminDashboardPage() {
   await requireAdminPage();
+
+  // Runden inkl. Einreichungszahl in einer Abfrage, Einstellungen parallel dazu.
+  const loadRounds = () =>
+    db
+      .select({
+        id: rounds.id,
+        roundNumber: rounds.roundNumber,
+        title: rounds.title,
+        status: rounds.status,
+        submittedCount: sql<number>`count(${submissions.id}) filter (where ${submissions.status} = 'submitted')`.mapWith(Number),
+      })
+      .from(rounds)
+      .leftJoin(submissions, eq(submissions.roundId, rounds.id))
+      .groupBy(rounds.id)
+      .orderBy(rounds.roundNumber);
+
+  let [allRounds, projectSettings] = await Promise.all([
+    loadRounds(),
+    db.query.settings.findFirst({ where: eq(settings.id, 1) }),
+  ]);
+
   // Frisch bereitgestellte Datenbank: Runde 1 und Seed-Taxonomie beim ersten Aufruf anlegen.
-  await seedIfEmpty();
-
-  const allRounds = await db.select().from(rounds).orderBy(rounds.roundNumber);
-  const projectSettings = await db.query.settings.findFirst({ where: eq(settings.id, 1) });
-
-  const counts = await Promise.all(
-    allRounds.map(async (r) => {
-      const subs = await db.select().from(submissions).where(eq(submissions.roundId, r.id));
-      return { roundId: r.id, count: subs.filter((s) => s.status === "submitted").length };
-    })
-  );
-  const countByRoundId = new Map(counts.map((c) => [c.roundId, c.count]));
+  if (allRounds.length === 0 && (await seedIfEmpty()) > 0) {
+    [allRounds, projectSettings] = await Promise.all([
+      loadRounds(),
+      db.query.settings.findFirst({ where: eq(settings.id, 1) }),
+    ]);
+  }
 
   const latestRound = allRounds[allRounds.length - 1];
 
@@ -69,7 +84,7 @@ export default async function AdminDashboardPage() {
                 <td className="px-4 py-2 font-medium">{r.roundNumber}</td>
                 <td className="px-4 py-2">{r.title}</td>
                 <td className="px-4 py-2">{STATUS_LABELS[r.status] ?? r.status}</td>
-                <td className="px-4 py-2">{countByRoundId.get(r.id) ?? 0}</td>
+                <td className="px-4 py-2">{r.submittedCount}</td>
                 <td className="px-4 py-2 text-right">
                   <Link href={`/admin/runden/${r.id}`} className="text-teal-700 hover:underline">
                     Öffnen →

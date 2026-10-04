@@ -92,21 +92,22 @@ export interface RoundAggregation {
 }
 
 export async function getRoundAggregation(roundId: string): Promise<RoundAggregation> {
-  const projectSettings = await db.query.settings.findFirst({ where: eq(settings.id, 1) });
+  // Unabhängige Abfragen parallel: jeder Roundtrip zur Datenbank kostet spürbar Zeit.
+  const [projectSettings, subRows, poolCats] = await Promise.all([
+    db.query.settings.findFirst({ where: eq(settings.id, 1) }),
+    db
+      .select({
+        id: submissions.id,
+        participantId: submissions.participantId,
+      })
+      .from(submissions)
+      .where(eq(submissions.roundId, roundId)),
+    getPoolCategoriesForRound(roundId),
+  ]);
   const consensusMaxIqr = projectSettings?.consensusMaxIqr ?? DEFAULT_CONSENSUS_MAX_IQR;
-
-  const subRows = await db
-    .select({
-      id: submissions.id,
-      participantId: submissions.participantId,
-    })
-    .from(submissions)
-    .where(eq(submissions.roundId, roundId));
 
   const submittedSubIds = subRows.map((s) => s.id);
   const participantCount = submittedSubIds.length;
-
-  const poolCats = await getPoolCategoriesForRound(roundId);
 
   if (submittedSubIds.length === 0) {
     return {
@@ -125,13 +126,12 @@ export async function getRoundAggregation(roundId: string): Promise<RoundAggrega
     };
   }
 
-  const ratingRows = await db.select().from(ratings).where(inArray(ratings.submissionId, submittedSubIds));
-
   const participantIdBySubmission = new Map(subRows.map((s) => [s.id, s.participantId]));
   const participantIds = Array.from(new Set(subRows.map((s) => s.participantId)));
-  const participantRows = participantIds.length
-    ? await db.select().from(participants).where(inArray(participants.id, participantIds))
-    : [];
+  const [ratingRows, participantRows] = await Promise.all([
+    db.select().from(ratings).where(inArray(ratings.submissionId, submittedSubIds)),
+    db.select().from(participants).where(inArray(participants.id, participantIds)),
+  ]);
   const participantById = new Map(participantRows.map((p) => [p.id, p]));
 
   const ratingsByCategoryId = new Map<string, number[]>(); // categoryId -> alle 1-9 Bewertungen
@@ -210,17 +210,13 @@ export async function getRoundAggregation(roundId: string): Promise<RoundAggrega
 }
 
 async function getPoolCategoriesForRound(roundId: string) {
-  // Wichtig: Reihenfolge kommt aus round_categories.sort_order, NICHT aus der IN-Klausel
-  // (eine WHERE id IN (...)-Abfrage ohne ORDER BY liefert in Postgres eine beliebige
-  // Zeilenreihenfolge zurück - das war die Ursache für die falsche Sortierung).
-  const links = await db
-    .select({ categoryId: roundCategories.categoryId, sortOrder: roundCategories.sortOrder })
+  // Reihenfolge kommt aus round_categories.sort_order (eine WHERE id IN (...)-Abfrage ohne
+  // ORDER BY liefert in Postgres eine beliebige Zeilenreihenfolge zurück).
+  const rows = await db
+    .select({ category: categories })
     .from(roundCategories)
+    .innerJoin(categories, eq(categories.id, roundCategories.categoryId))
     .where(eq(roundCategories.roundId, roundId))
     .orderBy(asc(roundCategories.sortOrder));
-  const orderedIds = links.map((l) => l.categoryId);
-  if (orderedIds.length === 0) return [];
-  const rows = await db.select().from(categories).where(inArray(categories.id, orderedIds));
-  const rowById = new Map(rows.map((r) => [r.id, r]));
-  return orderedIds.map((id) => rowById.get(id)).filter((r): r is typeof rows[number] => !!r);
+  return rows.map((r) => r.category);
 }

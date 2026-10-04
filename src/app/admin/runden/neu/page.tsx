@@ -25,7 +25,11 @@ export default async function CreateRoundPage({
     );
   }
 
-  const baseRound = await db.query.rounds.findFirst({ where: eq(rounds.id, basedOn) });
+  const [baseRound, aggregation, projectSettings] = await Promise.all([
+    db.query.rounds.findFirst({ where: eq(rounds.id, basedOn) }),
+    getRoundAggregation(basedOn),
+    db.query.settings.findFirst({ where: eq(settings.id, 1) }),
+  ]);
   if (!baseRound) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-8">
@@ -35,8 +39,6 @@ export default async function CreateRoundPage({
     );
   }
 
-  const aggregation = await getRoundAggregation(basedOn);
-  const projectSettings = await db.query.settings.findFirst({ where: eq(settings.id, 1) });
   const consensusMaxIqr = projectSettings?.consensusMaxIqr ?? 2;
 
   return (

@@ -1,6 +1,6 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { db } from "@/db";
-import { rounds, categories, roundCategories, participants, ratings } from "@/db/schema";
+import { rounds, categories, roundCategories, participants, ratings, submissions } from "@/db/schema";
 import { buildRatingList, type RenderedRatingItem } from "./tree";
 
 export interface PoolCategory {
@@ -46,33 +46,19 @@ export async function getRoundById(roundId: string): Promise<RoundWithPool | nul
 }
 
 async function attachPool(round: typeof rounds.$inferSelect): Promise<RoundWithPool> {
-  const links = await db
+  // Ein Join statt zwei Abfragen: die Funktionen laufen nicht in der Region der Datenbank,
+  // jeder Roundtrip kostet spürbar Zeit.
+  const pool: PoolCategory[] = await db
     .select({
-      categoryId: roundCategories.categoryId,
-      sortOrder: roundCategories.sortOrder,
+      id: categories.id,
+      name: categories.name,
+      isWhoIcps: categories.isWhoIcps,
+      suggestedParentId: categories.suggestedParentId,
     })
     .from(roundCategories)
-    .where(eq(roundCategories.roundId, round.id));
-
-  const categoryIds = links.map((l) => l.categoryId);
-  const cats = categoryIds.length
-    ? await db.select().from(categories).where(inArray(categories.id, categoryIds))
-    : [];
-  const catMap = new Map(cats.map((c) => [c.id, c]));
-
-  const pool: PoolCategory[] = links
-    .slice()
-    .sort((a, b) => a.sortOrder - b.sortOrder)
-    .map((l) => {
-      const c = catMap.get(l.categoryId)!;
-      return {
-        id: c.id,
-        name: c.name,
-        isWhoIcps: c.isWhoIcps,
-        suggestedParentId: c.suggestedParentId,
-      };
-    })
-    .filter(Boolean);
+    .innerJoin(categories, eq(categories.id, roundCategories.categoryId))
+    .where(eq(roundCategories.roundId, round.id))
+    .orderBy(asc(roundCategories.sortOrder));
 
   return {
     id: round.id,
@@ -100,25 +86,29 @@ export async function getExistingSubmission(
   email: string
 ): Promise<ExistingSubmission | null> {
   const normalizedEmail = email.trim().toLowerCase();
-  const participant = await db.query.participants.findFirst({
-    where: eq(participants.email, normalizedEmail),
-  });
-  if (!participant) return null;
+  const [found] = await db
+    .select({ participant: participants, submissionId: submissions.id })
+    .from(participants)
+    .innerJoin(
+      submissions,
+      and(eq(submissions.participantId, participants.id), eq(submissions.roundId, roundId))
+    )
+    .where(eq(participants.email, normalizedEmail))
+    .limit(1);
+  if (!found) return null;
+  const { participant } = found;
 
-  const submission = await db.query.submissions.findFirst({
-    where: (s, { and, eq }) => and(eq(s.roundId, roundId), eq(s.participantId, participant.id)),
-  });
-  if (!submission) return null;
-
-  const rows = await db.select().from(ratings).where(eq(ratings.submissionId, submission.id));
-  const categoryIds = rows.map((n) => n.categoryId).filter((v): v is string => !!v);
-  const cats = categoryIds.length
-    ? await db.select().from(categories).where(inArray(categories.id, categoryIds))
-    : [];
-  const catLookup = new Map(cats.map((c) => [c.id, { name: c.name, isWhoIcps: c.isWhoIcps }]));
+  const rows = await db
+    .select({ rating: ratings, category: { name: categories.name, isWhoIcps: categories.isWhoIcps } })
+    .from(ratings)
+    .leftJoin(categories, eq(categories.id, ratings.categoryId))
+    .where(eq(ratings.submissionId, found.submissionId));
+  const catLookup = new Map(
+    rows.flatMap((r) => (r.rating.categoryId && r.category ? [[r.rating.categoryId, r.category] as const] : []))
+  );
 
   const items = buildRatingList(
-    rows.map((n) => ({
+    rows.map(({ rating: n }) => ({
       id: n.id,
       categoryId: n.categoryId,
       isCustom: n.isCustom,

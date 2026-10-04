@@ -14,10 +14,11 @@ export default async function RoundDetailPage({ params }: { params: Promise<{ ro
   await requireAdminPage();
   const { roundId } = await params;
 
-  const round = await db.query.rounds.findFirst({ where: eq(rounds.id, roundId) });
+  const [round, aggregation] = await Promise.all([
+    db.query.rounds.findFirst({ where: eq(rounds.id, roundId) }),
+    getRoundAggregation(roundId),
+  ]);
   if (!round) notFound();
-
-  const aggregation = await getRoundAggregation(roundId);
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "http://localhost:3000";
   const inviteUrl = `${baseUrl}/runde/${round.inviteToken}`;
 

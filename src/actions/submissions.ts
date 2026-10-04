@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/db";
 import { rounds, participants, submissions, ratings } from "@/db/schema";
 import { submissionSchema, type SubmissionInput } from "@/lib/validation";
@@ -39,61 +39,29 @@ export async function submitTree(input: SubmissionInput): Promise<SubmitResult> 
 
   const normalizedEmail = participant.email.trim().toLowerCase();
 
-  let existingParticipant = await db.query.participants.findFirst({
-    where: eq(participants.email, normalizedEmail),
-  });
+  // Upserts statt Lesen-dann-Schreiben: spart Roundtrips zur Datenbank.
+  // Namen/Zusatzangaben werden dabei aktuell gehalten, falls sich etwas geändert hat.
+  const participantFields = {
+    name: participant.name.trim(),
+    profession: participant.profession || null,
+    institution: participant.institution || null,
+  };
+  const [{ id: participantId }] = await db
+    .insert(participants)
+    .values({ id: newId(), email: normalizedEmail, ...participantFields })
+    .onConflictDoUpdate({ target: participants.email, set: participantFields })
+    .returning({ id: participants.id });
 
-  if (!existingParticipant) {
-    const id = newId();
-    await db.insert(participants).values({
-      id,
-      name: participant.name.trim(),
-      email: normalizedEmail,
-      profession: participant.profession || null,
-      institution: participant.institution || null,
-    });
-    existingParticipant = {
-      id,
-      name: participant.name.trim(),
-      email: normalizedEmail,
-      profession: participant.profession || null,
-      institution: participant.institution || null,
-      createdAt: new Date(),
-    };
-  } else {
-    // Namen/Zusatzangaben aktuell halten, falls sich etwas geändert hat
-    await db
-      .update(participants)
-      .set({
-        name: participant.name.trim(),
-        profession: participant.profession || null,
-        institution: participant.institution || null,
-      })
-      .where(eq(participants.id, existingParticipant.id));
-  }
-
-  const existingSubmission = await db.query.submissions.findFirst({
-    where: and(eq(submissions.roundId, round.id), eq(submissions.participantId, existingParticipant.id)),
-  });
-
-  let submissionId: string;
-  if (existingSubmission) {
-    submissionId = existingSubmission.id;
-    await db
-      .update(submissions)
-      .set({ status: "submitted", submittedAt: new Date(), updatedAt: new Date() })
-      .where(eq(submissions.id, submissionId));
-    await db.delete(ratings).where(eq(ratings.submissionId, submissionId));
-  } else {
-    submissionId = newId();
-    await db.insert(submissions).values({
-      id: submissionId,
-      roundId: round.id,
-      participantId: existingParticipant.id,
-      status: "submitted",
-      submittedAt: new Date(),
-    });
-  }
+  const now = new Date();
+  const [{ id: submissionId }] = await db
+    .insert(submissions)
+    .values({ id: newId(), roundId: round.id, participantId, status: "submitted", submittedAt: now })
+    .onConflictDoUpdate({
+      target: [submissions.roundId, submissions.participantId],
+      set: { status: "submitted", submittedAt: now, updatedAt: now },
+    })
+    .returning({ id: submissions.id });
+  await db.delete(ratings).where(eq(ratings.submissionId, submissionId));
 
   const rows = flattenItems(items, submissionId);
   if (rows.length > 0) {
