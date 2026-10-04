@@ -14,7 +14,6 @@ import {
 } from "@/lib/tree-client";
 import { CategoryPool } from "./CategoryPool";
 import { RatingRow } from "./TreeNodeView";
-import { FeedbackPanel } from "./FeedbackPanel";
 
 export interface RatingEditorProps {
   pool: PoolCategory[];
@@ -107,7 +106,7 @@ export function RatingEditor({
 
   return (
     <div>
-      {feedback && <FeedbackPanel feedback={feedback} roundNumber={roundNumber} />}
+      {feedback?.note && <p className="mb-4 whitespace-pre-line text-sm text-slate-700">{feedback.note}</p>}
 
       {result?.ok && (
         <div className="mb-4 rounded-md border border-green-300 bg-green-50 p-4 text-sm text-green-800">
