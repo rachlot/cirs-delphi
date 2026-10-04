@@ -1,10 +1,10 @@
 "use server";
 
-import { eq, asc } from "drizzle-orm";
+import { eq, asc, desc, and, notExists } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { nanoid } from "nanoid";
 import { db } from "@/db";
-import { rounds, categories, roundCategories, settings } from "@/db/schema";
+import { rounds, categories, roundCategories, settings, participants, submissions } from "@/db/schema";
 import { checkAdminPassword, createAdminSession, destroyAdminSession, isAdminAuthenticated } from "@/lib/auth";
 import { getRoundAggregation } from "@/lib/aggregation";
 import { newId } from "@/lib/ids";
@@ -85,6 +85,35 @@ export async function updateRoundStatus(
     })
     .where(eq(rounds.id, roundId));
   return { ok: true };
+}
+
+/**
+ * Löscht eine Runde samt Einreichungen und Bewertungen (per FK-Cascade). Nur die neueste
+ * Runde ist löschbar, damit die Nummerierung lückenlos bleibt und keine Folgerunde ihre
+ * Ausgangsrunde verliert. Wird die einzige Runde gelöscht, legt das Dashboard beim nächsten
+ * Aufruf eine frische Runde 1 an (seedIfEmpty).
+ */
+export async function deleteRound(roundId: string): Promise<{ ok: boolean; error?: string }> {
+  await requireAdmin();
+  return db.transaction(async (tx) => {
+    const [latest] = await tx.select({ id: rounds.id }).from(rounds).orderBy(desc(rounds.roundNumber)).limit(1);
+    if (!latest || latest.id !== roundId) {
+      return { ok: false, error: "Nur die neueste Runde kann gelöscht werden." };
+    }
+    await tx.delete(rounds).where(eq(rounds.id, roundId));
+    // In dieser Runde neu aufgenommene Teilnehmer-Vorschläge gehören zu keinem Pool mehr.
+    await tx.delete(categories).where(
+      and(
+        eq(categories.introducedInRoundId, roundId),
+        notExists(tx.select().from(roundCategories).where(eq(roundCategories.categoryId, categories.id)))
+      )
+    );
+    // Datensparsamkeit: Teilnehmende ohne verbleibende Einreichung entfernen.
+    await tx
+      .delete(participants)
+      .where(notExists(tx.select().from(submissions).where(eq(submissions.participantId, participants.id))));
+    return { ok: true };
+  });
 }
 
 export interface CreateRoundInput {

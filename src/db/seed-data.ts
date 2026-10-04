@@ -40,8 +40,13 @@ export async function seedIfEmpty(): Promise<number> {
       inviteToken: nanoid(24),
     });
 
+    // Nach dem Löschen aller Runden existieren die Kategorien noch: per Name wiederverwenden,
+    // statt sie doppelt anzulegen.
+    const existingByName = new Map(
+      (await tx.select({ id: categories.id, name: categories.name }).from(categories)).map((c) => [c.name, c.id])
+    );
     const categoryRows = SEED_TAXONOMY.map((main, index) => ({
-      id: randomUUID(),
+      id: existingByName.get(main.name) ?? randomUUID(),
       name: main.name,
       isWhoIcps: !!main.whoIcps,
       suggestedParentId: null,
@@ -49,7 +54,8 @@ export async function seedIfEmpty(): Promise<number> {
       isActive: true,
       introducedInRoundId: null,
     }));
-    await tx.insert(categories).values(categoryRows);
+    const newRows = categoryRows.filter((c) => !existingByName.has(c.name));
+    if (newRows.length > 0) await tx.insert(categories).values(newRows);
     await tx.insert(roundCategories).values(
       categoryRows.map((c) => ({ roundId: round1Id, categoryId: c.id, sortOrder: c.sortOrder }))
     );

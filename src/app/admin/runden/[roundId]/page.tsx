@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { notFound } from "next/navigation";
 import { requireAdminPage } from "@/lib/auth";
 import { db } from "@/db";
@@ -9,14 +9,16 @@ import { AdminNav } from "@/components/AdminNav";
 import { RoundStatusControls } from "@/components/RoundStatusControls";
 import { InviteLinkBox } from "@/components/InviteLinkBox";
 import { AggregationView } from "@/components/AggregationView";
+import { DeleteRoundButton } from "@/components/DeleteRoundButton";
 
 export default async function RoundDetailPage({ params }: { params: Promise<{ roundId: string }> }) {
   await requireAdminPage();
   const { roundId } = await params;
 
-  const [round, aggregation] = await Promise.all([
+  const [round, aggregation, latestRound] = await Promise.all([
     db.query.rounds.findFirst({ where: eq(rounds.id, roundId) }),
     getRoundAggregation(roundId),
+    db.query.rounds.findFirst({ columns: { id: true }, orderBy: desc(rounds.roundNumber) }),
   ]);
   if (!round) notFound();
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.URL ?? "http://localhost:3000";
@@ -31,8 +33,11 @@ export default async function RoundDetailPage({ params }: { params: Promise<{ ro
           Runde {round.roundNumber}: {round.title}
         </h1>
       </div>
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <RoundStatusControls roundId={round.id} status={round.status} />
+        {latestRound?.id === round.id && (
+          <DeleteRoundButton roundId={round.id} roundNumber={round.roundNumber} />
+        )}
       </div>
 
       <div className="mb-6 rounded-lg border border-slate-200 p-4">
