@@ -126,34 +126,24 @@ Für den produktiven Einsatz werden zwei gleichwertige Wege empfohlen. Beide erf
 die im Lastenheft geforderte EU-Datenhaltung, wenn die jeweilige Region korrekt gewählt
 wird.
 
-### Option N – Netlify mit Netlify Database (keine eigene Datenbank nötig)
+### Option N – Netlify + Supabase (aktuelles Produktions-Setup)
 
-Die Konfiguration liegt in `netlify.toml`. Netlify erkennt Next.js automatisch, und über
-das Paket `@netlify/database` wird beim ersten Deploy automatisch eine Postgres-Datenbank
-angelegt (Verbindung über `NETLIFY_DB_URL`, wird nicht manuell gesetzt).
+Die Konfiguration liegt in `netlify.toml`. Netlify erkennt Next.js automatisch; der
+Build-Befehl wendet vorher die Migrationen auf `DATABASE_URL` an. Runde 1 und die
+Seed-Taxonomie entstehen beim ersten Aufruf des Admin-Dashboards
+(`seedIfEmpty` in `src/db/seed-data.ts`).
 
-- **Tabellen**: Netlify spielt die SQL-Dateien aus `netlify/database/migrations/` vor dem
-  Veröffentlichen jedes Deploys ein. `npm run db:generate` legt neue Migrationen unter
-  `drizzle/` an und spiegelt sie automatisch dorthin.
-- **Startdaten**: Runde 1 und die Seed-Taxonomie entstehen beim ersten Aufruf des
-  Admin-Dashboards (`seedIfEmpty` in `src/db/seed-data.ts`).
-- **Umgebungsvariablen** in Netlify: `ADMIN_PASSWORD` und `SESSION_SECRET`.
-  `DATABASE_URL` nicht setzen, sonst wird statt der Netlify Database diese Datenbank
-  verwendet. `NEXT_PUBLIC_APP_URL` ist optional; ohne sie nutzen die Einladungslinks die
+- **Datenbank**: Supabase-Projekt in Frankfurt (`eu-central-1`). Als `DATABASE_URL` den
+  Session-Pooler-String (`…pooler.supabase.com:5432`) verwenden, mit
+  `?uselibpqcompat=true&sslmode=require`: Supabase signiert mit einer eigenen CA, die
+  Node nicht kennt; so ist die Verbindung verschlüsselt, ohne dass die CA hinterlegt
+  werden muss.
+- **Row Level Security**: Migration `0001_enable_rls.sql` schaltet RLS auf allen Tabellen
+  ein (ohne Policies). Damit sind die Daten über die öffentliche Supabase-REST-API nicht
+  lesbar; die App verbindet sich als Tabellenbesitzer und ist nicht betroffen.
+- **Umgebungsvariablen** in Netlify: `DATABASE_URL`, `ADMIN_PASSWORD`, `SESSION_SECRET`.
+  `NEXT_PUBLIC_APP_URL` ist optional; ohne sie nutzen die Einladungslinks die
   Netlify-URL der Site.
-
-Deploy per CLI:
-
-```bash
-npx netlify-cli login
-npx netlify-cli sites:create --name <name>
-npx netlify-cli env:set ADMIN_PASSWORD "<passwort>"
-npx netlify-cli env:set SESSION_SECRET "$(openssl rand -hex 32)"
-npx netlify-cli deploy --build --prod
-```
-
-Alternativ das Repository über GitHub in Netlify importieren und die beiden Variablen
-unter „Site configuration → Environment variables" setzen.
 
 ### Option A – Vercel + verwaltete Postgres-Datenbank (am wenigsten Wartungsaufwand)
 
