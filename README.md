@@ -4,7 +4,7 @@ Web-Anwendung zur Konsentierung eines CIRS-Kategoriensystems durch ein Experteng
 über mehrere Delphi-Runden hinweg, gemäß dem Lastenheft von Dr. Carlos Hölzing
 (MedFlow Systems).
 
-Kernfunktionen: einfache Klick-Auswahl der (aktuell 16) Hauptkategorien aus der
+Kernfunktionen: einfache Klick-Auswahl der (aktuell 22) Hauptkategorien aus der
 Seed-Taxonomie, eigene (private) Kategorien, Bewertung jeder ausgewählten Kategorie auf
 einer 1–9-Wichtigkeits-/Sicherheitsskala (RAND/UCLA-Standard) inkl. optionalem
 Kommentar, mehrstufiges Rundenverfahren mit kompakter Rückmeldung aus der Vorrunde,
@@ -89,7 +89,7 @@ drizzle/            Generierte SQL-Migrationen (versioniert, in Produktion ausf�
 
 ## Funktionsweise des Rundenverfahrens
 
-1. **Runde 1**: Die Seed-Taxonomie aus dem Lastenheft (aktuell nur die 16
+1. **Runde 1**: Die Seed-Taxonomie aus dem Lastenheft (aktuell nur die 22
    Hauptkategorien) ist der Ausgangspool. Teilnehmende klicken die für sie relevanten
    Kategorien einfach an, um sie in ihre persönliche Auswahlliste zu übernehmen, können
    eigene (nur für sie sichtbare) Kategorien ergänzen, und bewerten jede ausgewählte
@@ -216,7 +216,8 @@ getroffene Annahmen sind leicht anpassbar:
 
 - **Aktuell nur Hauptkategorien, keine Baum-Struktur**: Auf ausdrücklichen Wunsch enthält
   die Seed-Taxonomie (`src/db/taxonomy-seed-data.ts`) nur die 16 Hauptkategorien aus dem
-  Lastenheft, keine Unterkategorien. Das Datenmodell wurde bewusst von einem
+  Lastenheft plus sechs nachträglich ergänzte (Prozessstörung, Arbeitssicherheit, Material,
+  Logistik, Patientenunfall, Klinische Administration), keine Unterkategorien. Das Datenmodell wurde bewusst von einem
   Drag-&-Drop-Baum-Editor auf eine flache Auswahl-/Bewertungsliste umgestellt
   (Klick-Auswahl + eigene Kategorien + 1–9-Bewertung), um die Zuordnung für alle
   Teilnehmenden so einfach und schnell wie möglich zu machen und die Auswertung für die

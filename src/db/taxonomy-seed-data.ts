@@ -3,8 +3,8 @@
 //
 // Stand jetzt: NUR Hauptkategorien (auf Wunsch des Auftraggebers) - Unterkategorien sind
 // vorerst bewusst nicht enthalten, um das System für Runde 1 einfach und schnell zuordenbar
-// zu halten. Die 16 Hauptkategorien entsprechen exakt Reihenfolge und Benennung aus dem
-// Lastenheft, Abschnitt 8.
+// zu halten. Die ersten 15 Hauptkategorien und „Sonstiges“ entsprechen Reihenfolge und
+// Benennung aus dem Lastenheft, Abschnitt 8; sechs weitere wurden nachträglich ergänzt.
 //
 // "whoIcps"-Kennzeichnung: Im Lastenheft selbst waren nur 5 Hauptkategorien inline mit
 // "(WHO ICPS)" markiert (IT-Systeme, Infrastruktur, Ressourcen/Organisation, Nosokomiale
@@ -43,5 +43,12 @@ export const SEED_TAXONOMY: SeedCategory[] = [
   { name: "Ernährung & medizinische Gase", whoIcps: true }, // WHO ICPS: "Nutrition" + "Oxygen"
   { name: "Verwechslung", whoIcps: false },
   { name: "Datenschutz & Compliance", whoIcps: false },
+  // Nachträglich ergänzt (nicht im Lastenheft, Abschnitt 8):
+  { name: "Prozessstörung", whoIcps: false },
+  { name: "Arbeitssicherheit", whoIcps: false },
+  { name: "Material", whoIcps: false },
+  { name: "Logistik", whoIcps: false },
+  { name: "Patientenunfall", whoIcps: true }, // WHO ICPS: "Patient accidents"
+  { name: "Klinische Administration", whoIcps: true }, // WHO ICPS: "Clinical administration"
   { name: "Sonstiges", whoIcps: false },
 ];
