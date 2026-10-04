@@ -1,6 +1,5 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
-import { getConnectionString } from "@netlify/database";
 import * as schema from "./schema";
 
 declare global {
@@ -11,8 +10,7 @@ declare global {
 const pool =
   global.__cirsDelphiPool ??
   new Pool({
-    // Lokal aus der .env, auf Netlify die automatisch bereitgestellte Netlify Database.
-    connectionString: process.env.DATABASE_URL ?? getConnectionString(),
+    connectionString: process.env.DATABASE_URL,
     // Serverless (Netlify Functions): jede Instanz hält nur wenige Verbindungen,
     // sonst ist das Verbindungslimit der Datenbank schnell erschöpft.
     max: process.env.NODE_ENV === "production" ? 3 : 10,

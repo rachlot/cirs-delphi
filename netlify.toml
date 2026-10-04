@@ -1,9 +1,8 @@
 # Netlify erkennt Next.js automatisch (OpenNext-Adapter).
-# Die Datenbank (Netlify Database) wird beim ersten Deploy automatisch angelegt; die
-# Migrationen aus netlify/database/migrations/ spielt Netlify vor dem Veröffentlichen ein.
+# Vor dem Build werden die Drizzle-Migrationen auf DATABASE_URL angewendet (idempotent).
 # Runde 1 und die Seed-Taxonomie entstehen beim ersten Aufruf des Admin-Dashboards.
 [build]
-  command = "npm run build"
+  command = "npm run db:migrate && npm run build"
   publish = ".next"
 
 [build.environment]

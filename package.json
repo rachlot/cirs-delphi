@@ -7,13 +7,12 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "db:generate": "drizzle-kit generate && node scripts/sync-netlify-migrations.mjs",
+    "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
-    "@netlify/database": "^2.0.1",
     "csv-stringify": "^6.8.3",
     "drizzle-orm": "^0.45.2",
     "jsonwebtoken": "^9.0.3",
